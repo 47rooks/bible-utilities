@@ -33,7 +33,7 @@ Created on Jan 21, 2017
 from inspect import currentframe
 import re
 from collections import namedtuple
-from tkinter.tix import Form
+from test import test_userdict
 
 class Identifier(object):
     '''An Identifier is a set of unique name to value mappings which are
@@ -539,7 +539,7 @@ class __BookID(Identifier):
 BookID = __BookID()
 
 class Versification(object):
-    """Defines a bibleutils system.
+    """Defines a bibleutils versification system.
     """
     
     def __init__(self, vid, bk_id_map):
@@ -547,54 +547,77 @@ class Versification(object):
         self._bk_mapping = bk_id_map
         
         # Construct and store the reverse mapping
-    
-    def id(self):
-        return self._id
+        self._reverse_mapping = dict()
+        for (k, v) in self._bk_mapping.items():
+            self._reverse_mapping[v] = k 
+        if len(self._bk_mapping) != len(self._reverse_mapping):
+            raise Exception(f'Duplicate values detected '
+                             'forward map size={len(self._bk_mapping)}'
+                             'reverse map size={len(self._reverse_mapping)}')
+            
+    def vid(self):
+        '''Get the versification system ID
+        '''
+        return self._vid
         
-class ETCBCH(Versification):
+    def book_id(self, book_name):
+        '''Return the internal book ID for the given name.
+        '''
+        return self._bk_mapping.get(book_name)
+    
+    def book_name(self, book_id):
+        '''Return the book name as defined in this verisification system for
+        the given internal book ID.
+        '''
+        return self._reverse_mapping.get(book_id)
+    
+class __ETCBCH(Versification):
     
     def __init__(self):
-        super(VersificationID.ETCBCH,
+        super().__init__(
+              VersificationID.ETCBCH,
             {   'Genesis' : BookID._GENESIS,
                 'Exodus' : BookID._EXODUS,
                 'Leviticus' : BookID._LEVITICUS,
-                'Numbers' : BookID._NUMBERS,
-                'Deuteronomy' : BookID._DEUTERONOMY,
-                'Joshua' : BookID._JOSHUA,
-                'Judges' : BookID._JUDGES,
-                '1_Samuel' : BookID._1SAMUEL,
-                '2_Samuel' : BookID._2SAMUEL,
-                '1_Kings' : BookID._1KINGS,
-                '2_Kings' : BookID._2KINGS,
-                'Isaiah' : BookID._ISAIAH,
-                'Jeremiah' : BookID._JEREMIAH,
-                'Ezekiel' : BookID._EZEKIEL,
+                'Numeri' : BookID._NUMBERS,
+                'Deuteronomium' : BookID._DEUTERONOMY,
+                'Josua' : BookID._JOSHUA,
+                'Judices' : BookID._JUDGES,
+                'Samuel_I' : BookID._1SAMUEL,
+                'Samuel_II' : BookID._2SAMUEL,
+                'Reges_I' : BookID._1KINGS,
+                'Reges_II' : BookID._2KINGS,
+                'Jesaia' : BookID._ISAIAH,
+                'Jeremia' : BookID._JEREMIAH,
+                'Ezechiel' : BookID._EZEKIEL,
                 'Hosea' : BookID._HOSEA,
                 'Joel' : BookID._JOEL,
                 'Amos' : BookID._AMOS,
-                'Obadiah' : BookID._OBADIAH,
-                'Jonah' : BookID._JONAH,
-                'Micah' : BookID._MICAH,
+                'Obadia' : BookID._OBADIAH,
+                'Jona' : BookID._JONAH,
+                'Micha' : BookID._MICAH,
                 'Nahum' : BookID._NAHUM,
-                'Habakkuk' : BookID._HABAKKUK,
-                'Zephaniah' : BookID._ZEPHANIAH,
+                'Habakuk' : BookID._HABAKKUK,
+                'Zephania' : BookID._ZEPHANIAH,
                 'Haggai' : BookID._HAGGAI,
-                'Zechariah' : BookID._ZECHARIAH,
-                'Malachi' : BookID._MALACHI,
-                'Psalms' : BookID._PSALMS,
-                'Job' : BookID._JOB,
-                'Proverbs' : BookID._PROVERBS,
+                'Sacharia' : BookID._ZECHARIAH,
+                'Maleachi' : BookID._MALACHI,
+                'Psalmi' : BookID._PSALMS,
+                'Iob' : BookID._JOB,
+                'Proverbia' : BookID._PROVERBS,
                 'Ruth' : BookID._RUTH,
-                'Song_of_songs' : BookID._SONG_OF_SONGS,
+                'Canticum' : BookID._SONG_OF_SONGS,
                 'Ecclesiastes' : BookID._ECCLESIASTES,
-                'Lamentations' : BookID._LAMENTATIONS,
+                'Threni' : BookID._LAMENTATIONS,
                 'Esther' : BookID._ESTHER,
                 'Daniel' : BookID._DANIEL,
-                'Ezra' : BookID._EZRA,
-                'Nehemiah' : BookID._NEHEMIAH,
-                '1_Chronicles' : BookID._1CHRONICLES,
-                '2_Chronicles' : BookID._2CHRONICLES
+                'Esra' : BookID._EZRA,
+                'Nehemia' : BookID._NEHEMIAH,
+                'Chronica_I' : BookID._1CHRONICLES,
+                'Chronica_II' : BookID._2CHRONICLES
             })
+
+ETCBCHVersification = __ETCBCH()
 
 class __ReferenceFormID(Identifier):
     '''Defines the bibleutils system identifiers
@@ -622,6 +645,9 @@ class Ref():
     '''A Ref class contains a text reference. It contains reference to a
     single contiguous range of text, as defined in the particular versification
     system.
+    
+    FIXME there is confusion over verisification system ID and reference form ID
+    I think this here should be reference form ID. Are they really distinct ?
     '''
     def __init__(self, v, sb=None, eb=None, sc=None, ec=None, sv=None,
                  ev=None, ssv=None, esv=None):
@@ -833,7 +859,38 @@ def convert_refs(refs, form):
     returning a new list of refs of the right form. At present this is and 
     simple conversion of just the book names.
     '''
-    
+    to_internal = False
+    if form == ReferenceFormID.ETCBC:
+        ovf = ETCBCHVersification
+    elif form == ReferenceFormID.BIBLEUTILS:
+        # This is the internal form. This means convert to internal ID based
+        # form. This is a unique conversion and each versification system 
+        # supports this by the *_id() converter functions.
+        # I am not satisfied with this mapping method here, so it needs
+        # to be rethought. FIXME for now this hack will do.
+        to_internal = True
+    else:
+        raise Exception('Unsupported conversion form {form}')
+    rv = []
+    for r in refs:
+        if r.versification == ReferenceFormID.BIBLEUTILS:
+            rv.append(Ref(form,
+                          ovf.book_name(r.st_book),
+                          ovf.book_name(r.end_book),
+                          r.st_ch, r.end_ch,
+                          r.st_vs, r.end_vs,
+                          r.st_sub_vs, r.end_sub_vs))
+        elif r.versification == ReferenceFormID.ETCBC:
+            if to_internal is True:
+                rv.append(Ref(form,
+                          ETCBCHVersification.book_id(r.st_book),
+                          ETCBCHVersification.book_id(r.end_book),
+                          r.st_ch, r.end_ch,
+                          r.st_vs, r.end_vs,
+                          r.st_sub_vs, r.end_sub_vs))
+
+    return rv    
+            
 def expand_refs(refs):
     '''Expand each of the refs in the input list into a new list of refs
     each being just a single a ref to a single final point. For example

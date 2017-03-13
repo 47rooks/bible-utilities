@@ -5,7 +5,7 @@ Created on Jan 22, 2017
 '''
 import unittest
 from bibleutils.versification import VersificationID, BookID, Identifier, \
-     ReferenceFormID, parse_refs
+     ReferenceFormID, parse_refs, ETCBCHVersification, Ref, convert_refs
 
 class Test(unittest.TestCase):
 
@@ -38,6 +38,15 @@ class Test(unittest.TestCase):
         for k in VersificationID:
             print('key={:s}'.format(k))
             
+    def testBookNameFromBookId(self):
+        self.assertEqual(ETCBCHVersification.book_name(BookID._NUMBERS), 'Numeri',
+                         f'Incorrect name from book_id {ETCBCHVersification.book_id(BookID._NUMBERS)}')
+
+    def testBookIdFromBookName(self):
+        self.assertEqual(ETCBCHVersification.book_id('Numeri'),
+                         BookID._NUMBERS,
+                         f"Incorrect ID from book_name {ETCBCHVersification.book_name('Numeri')}")
+        
     def testIDValuesUnique(self):
         '''Verify that duplicates cannot be created in the Identifier class
         ''' 
@@ -306,6 +315,56 @@ class Test(unittest.TestCase):
         self.assertEqual(r[4].st_ch, 13,
                          'incorrect starting chapter {}'.format(r[4].st_vs))  
             
+    def testConvertInternalToETCBCH(self):
+        refs = [Ref(ReferenceFormID.BIBLEUTILS,
+                    BookID._DEUTERONOMY, sc=3, sv=4),
+                Ref(ReferenceFormID.BIBLEUTILS,
+                    BookID._EXODUS, BookID._EXODUS, 1, sv=12, ev=15)]
+        c_refs = convert_refs(refs, ReferenceFormID.ETCBC)
+        self.assertEqual(c_refs[0].versification, ReferenceFormID.ETCBC,
+                         f'Incorrect reference form {c_refs[0].versification}')
+        self.assertEqual(c_refs[0].st_book, 'Deuteronomium',
+                         f'Conversion returned wrong name {c_refs[0].st_book}')
+        self.assertEqual(c_refs[0].st_ch, 3,
+                         f'Conversion returned wrong ch {c_refs[0].st_ch}')
+        self.assertEqual(c_refs[0].st_vs, 4,
+                         f'Conversion returned wrong vs {c_refs[0].st_vs}')
+        self.assertEqual(c_refs[1].versification, ReferenceFormID.ETCBC,
+                         f'Incorrect reference form {c_refs[0].versification}')
+        self.assertEqual(c_refs[1].st_book, 'Exodus',
+                         f'Conversion returned wrong name {c_refs[1].st_book}')
+        self.assertEqual(c_refs[1].st_ch, 1,
+                         f'Conversion returned wrong ch {c_refs[1].st_ch}')
+        self.assertEqual(c_refs[1].st_vs, 12,
+                         f'Conversion returned wrong vs {c_refs[1].st_vs}')
+        self.assertEqual(c_refs[1].end_vs, 15,
+                         f'Conversion returned wrong vs {c_refs[1].end_vs}')
+        
+    def testConvertETCBCHToInternal(self):
+        refs = [Ref(ReferenceFormID.ETCBC,
+                    'Deuteronomium', sc=3, sv=4),
+                Ref(ReferenceFormID.ETCBC,
+                    'Exodus', 'Exodus', 1, sv=12, ev=15)]
+        c_refs = convert_refs(refs, ReferenceFormID.BIBLEUTILS)
+        self.assertEqual(c_refs[0].versification, ReferenceFormID.BIBLEUTILS,
+                         f'Incorrect reference form {c_refs[0].versification}')
+        self.assertEqual(c_refs[0].st_book, BookID._DEUTERONOMY,
+                         f'Conversion returned wrong name {c_refs[0].st_book}')
+        self.assertEqual(c_refs[0].st_ch, 3,
+                         f'Conversion returned wrong ch {c_refs[0].st_ch}')
+        self.assertEqual(c_refs[0].st_vs, 4,
+                         f'Conversion returned wrong vs {c_refs[0].st_vs}')
+        self.assertEqual(c_refs[1].versification, ReferenceFormID.BIBLEUTILS,
+                         f'Incorrect reference form {c_refs[1].versification}')
+        self.assertEqual(c_refs[1].st_book, BookID._EXODUS,
+                         f'Conversion returned wrong name {c_refs[1].st_book}')
+        self.assertEqual(c_refs[1].st_ch, 1,
+                         f'Conversion returned wrong ch {c_refs[1].st_ch}')
+        self.assertEqual(c_refs[1].st_vs, 12,
+                         f'Conversion returned wrong vs {c_refs[1].st_vs}')
+        self.assertEqual(c_refs[1].end_vs, 15,
+                         f'Conversion returned wrong vs {c_refs[1].end_vs}')
+        
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
