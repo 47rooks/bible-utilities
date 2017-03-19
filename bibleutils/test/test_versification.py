@@ -10,10 +10,8 @@ from bibleutils.versification import VersificationID, BookID, Identifier, \
 
 class Test(unittest.TestCase):
 
-
     def setUp(self):
         pass
-
 
     def tearDown(self):
         pass
