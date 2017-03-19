@@ -619,20 +619,63 @@ class __ETCBCH(Versification):
 
 ETCBCHVersification = __ETCBCH()
 
+class __ETCBCG(Versification):
+    
+    def __init__(self):
+        super().__init__(
+              VersificationID.ETCBCG,
+            {   'Genesis' : BookID._GENESIS,
+                'Exodus' : BookID._EXODUS,
+                'Matthew' : BookID._MATTHEW,
+                'Mark' : BookID._MARK,
+                'Luke' : BookID._LUKE,
+                'John' : BookID._JOHN,
+                'Acts' : BookID._ACTS,
+                'Romans' : BookID._ROMANS,
+                '1Corinthians' : BookID._1CORINTHIANS,
+                '2Corinthians' : BookID._2CORINTHIANS,
+                'Galations' : BookID._GALATIANS,
+                'Ephesians' : BookID._EPHESIANS,
+                'Philippians' : BookID._PHILIPPIANS,
+                'Colossians' : BookID._COLOSSIANS,
+                '1Thessalonians' : BookID._1THESSALONIANS,
+                '2Thessalonians' : BookID._2THESSALONIANS,
+                '1Timothy' : BookID._1TIMOTHY,
+                '2Timothy' : BookID._2TIMOTHY,
+                'Titus' : BookID._TITUS,
+                'Philemon' : BookID._PHILEMON,
+                'Hebrews' : BookID._HEBREWS,
+                'James' : BookID._JAMES,
+                '1Peter' : BookID._1PETER,
+                '2Peter' : BookID._2PETER,
+                '1John' : BookID._1JOHN,
+                '2John' : BookID._2JOHN,
+                '3John' : BookID._3JOHN,
+                'Jude' : BookID._JUDE,
+                'Revelation': BookID._REVELATION
+            })
+
+ETCBCGVersification = __ETCBCG()
+
 class __ReferenceFormID(Identifier):
     '''Defines the bibleutils system identifiers
     '''
     def __init__(self):
         super().__init__({'BIBLEUTILS' : 0,
-                          'ETCBC' : 1,
-                          'IGNTPSinaiticus' : 2})
+                          'ETCBCG' : 1,
+                          'ETCBCH' : 2,
+                          'IGNTPSinaiticus' : 3})
  
     @property
     def BIBLEUTILS(self):
         return self._map.get(currentframe().f_code.co_name)
 
     @property
-    def ETCBC(self):
+    def ETCBCG(self):
+        return self._map.get(currentframe().f_code.co_name)
+
+    @property
+    def ETCBCH(self):
         return self._map.get(currentframe().f_code.co_name)
 
     @property
@@ -645,12 +688,20 @@ class Ref():
     '''A Ref class contains a text reference. It contains reference to a
     single contiguous range of text, as defined in the particular versification
     system.
-    
-    FIXME there is confusion over verisification system ID and reference form ID
-    I think this here should be reference form ID. Are they really distinct ?
     '''
+    # FIXME there is confusion over verisification system ID and reference form ID
+    # I think this here should be reference form ID. Are they really distinct ?
+    
+    # FIXME Book order is not checked and can only be checked meaningfully when
+    # the versification system is fully specified in this module. Sub verses
+    # are also not checked and I do not know yet how.
     def __init__(self, v, sb=None, eb=None, sc=None, ec=None, sv=None,
                  ev=None, ssv=None, esv=None):
+        if sc is not None and ec is not None and ec < sc:
+            raise Exception(f'ending vs {ec} is before the starting vs {sc}')
+        if sv is not None and ev is not None and ev < sv:
+            raise Exception(f'ending vs {ev} is before the starting vs {sv}')
+        
         self._versification = v
         self._st_book = sb
         self._end_book = eb
@@ -860,7 +911,9 @@ def convert_refs(refs, form):
     simple conversion of just the book names.
     '''
     to_internal = False
-    if form == ReferenceFormID.ETCBC:
+    if form == ReferenceFormID.ETCBCG:
+        ovf = ETCBCGVersification
+    elif form == ReferenceFormID.ETCBCH:
         ovf = ETCBCHVersification
     elif form == ReferenceFormID.BIBLEUTILS:
         # This is the internal form. This means convert to internal ID based
@@ -880,7 +933,15 @@ def convert_refs(refs, form):
                           r.st_ch, r.end_ch,
                           r.st_vs, r.end_vs,
                           r.st_sub_vs, r.end_sub_vs))
-        elif r.versification == ReferenceFormID.ETCBC:
+        elif r.versification == ReferenceFormID.ETCBCG:
+            if to_internal is True:
+                rv.append(Ref(form,
+                          ETCBCGVersification.book_id(r.st_book),
+                          ETCBCGVersification.book_id(r.end_book),
+                          r.st_ch, r.end_ch,
+                          r.st_vs, r.end_vs,
+                          r.st_sub_vs, r.end_sub_vs))
+        elif r.versification == ReferenceFormID.ETCBCH:
             if to_internal is True:
                 rv.append(Ref(form,
                           ETCBCHVersification.book_id(r.st_book),
@@ -898,3 +959,23 @@ def expand_refs(refs):
     Gen 1:35, Gen 1:36, Gen 1:37". This conversion is primarily aimed at the
     section API, nodeFromSection(), of Text-Fabric.
     '''
+    # FIXME There is no way to expand references like this without having
+    # a knowledge of the internals of the versification system in which the
+    # expansion is to be done. It is arguable this is not entirely generalizable
+    # or useful but for now we will do the verses.
+    rv = []
+    for r in refs:
+        if r.end_book != None:
+            raise Exception('book range expansion not yet implemented')
+        if r.end_ch != None:
+            raise Exception('chapter range expansion not yet implemented')
+        #end_ch = r.end_ch if r.end_ch is not None else r.st_ch
+        #for ch in range(r.st_ch, end_ch + 1):
+        end_vs = r.end_vs if r.end_vs is not None else r.st_vs
+        for vs in range(r.st_vs, end_vs + 1):
+            rv.append(Ref(r.versification,
+                          r.st_book, None,
+                          r.st_ch, None,
+                          vs, None))
+    return rv
+                

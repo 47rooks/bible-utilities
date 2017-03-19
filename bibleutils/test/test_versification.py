@@ -5,7 +5,8 @@ Created on Jan 22, 2017
 '''
 import unittest
 from bibleutils.versification import VersificationID, BookID, Identifier, \
-     ReferenceFormID, parse_refs, ETCBCHVersification, Ref, convert_refs
+     ReferenceFormID, parse_refs, ETCBCHVersification, Ref, convert_refs, \
+     expand_refs
 
 class Test(unittest.TestCase):
 
@@ -320,8 +321,8 @@ class Test(unittest.TestCase):
                     BookID._DEUTERONOMY, sc=3, sv=4),
                 Ref(ReferenceFormID.BIBLEUTILS,
                     BookID._EXODUS, BookID._EXODUS, 1, sv=12, ev=15)]
-        c_refs = convert_refs(refs, ReferenceFormID.ETCBC)
-        self.assertEqual(c_refs[0].versification, ReferenceFormID.ETCBC,
+        c_refs = convert_refs(refs, ReferenceFormID.ETCBCH)
+        self.assertEqual(c_refs[0].versification, ReferenceFormID.ETCBCH,
                          f'Incorrect reference form {c_refs[0].versification}')
         self.assertEqual(c_refs[0].st_book, 'Deuteronomium',
                          f'Conversion returned wrong name {c_refs[0].st_book}')
@@ -329,7 +330,7 @@ class Test(unittest.TestCase):
                          f'Conversion returned wrong ch {c_refs[0].st_ch}')
         self.assertEqual(c_refs[0].st_vs, 4,
                          f'Conversion returned wrong vs {c_refs[0].st_vs}')
-        self.assertEqual(c_refs[1].versification, ReferenceFormID.ETCBC,
+        self.assertEqual(c_refs[1].versification, ReferenceFormID.ETCBCH,
                          f'Incorrect reference form {c_refs[0].versification}')
         self.assertEqual(c_refs[1].st_book, 'Exodus',
                          f'Conversion returned wrong name {c_refs[1].st_book}')
@@ -341,9 +342,9 @@ class Test(unittest.TestCase):
                          f'Conversion returned wrong vs {c_refs[1].end_vs}')
         
     def testConvertETCBCHToInternal(self):
-        refs = [Ref(ReferenceFormID.ETCBC,
+        refs = [Ref(ReferenceFormID.ETCBCH,
                     'Deuteronomium', sc=3, sv=4),
-                Ref(ReferenceFormID.ETCBC,
+                Ref(ReferenceFormID.ETCBCH,
                     'Exodus', 'Exodus', 1, sv=12, ev=15)]
         c_refs = convert_refs(refs, ReferenceFormID.BIBLEUTILS)
         self.assertEqual(c_refs[0].versification, ReferenceFormID.BIBLEUTILS,
@@ -364,6 +365,169 @@ class Test(unittest.TestCase):
                          f'Conversion returned wrong vs {c_refs[1].st_vs}')
         self.assertEqual(c_refs[1].end_vs, 15,
                          f'Conversion returned wrong vs {c_refs[1].end_vs}')
+    
+    def testConvertInternalToETCBCG(self):
+        refs = [Ref(ReferenceFormID.BIBLEUTILS,
+                    BookID._LUKE, sc=3, sv=4),
+                Ref(ReferenceFormID.BIBLEUTILS,
+                    BookID._MARK, BookID._MARK, 1, sv=12, ev=15)]
+        c_refs = convert_refs(refs, ReferenceFormID.ETCBCG)
+        self.assertEqual(c_refs[0].versification, ReferenceFormID.ETCBCG,
+                         f'Incorrect reference form {c_refs[0].versification}')
+        self.assertEqual(c_refs[0].st_book, 'Luke',
+                         f'Conversion returned wrong name {c_refs[0].st_book}')
+        self.assertEqual(c_refs[0].st_ch, 3,
+                         f'Conversion returned wrong ch {c_refs[0].st_ch}')
+        self.assertEqual(c_refs[0].st_vs, 4,
+                         f'Conversion returned wrong vs {c_refs[0].st_vs}')
+        self.assertEqual(c_refs[1].versification, ReferenceFormID.ETCBCG,
+                         f'Incorrect reference form {c_refs[0].versification}')
+        self.assertEqual(c_refs[1].st_book, 'Mark',
+                         f'Conversion returned wrong name {c_refs[1].st_book}')
+        self.assertEqual(c_refs[1].st_ch, 1,
+                         f'Conversion returned wrong ch {c_refs[1].st_ch}')
+        self.assertEqual(c_refs[1].st_vs, 12,
+                         f'Conversion returned wrong vs {c_refs[1].st_vs}')
+        self.assertEqual(c_refs[1].end_vs, 15,
+                         f'Conversion returned wrong vs {c_refs[1].end_vs}')
+        
+    def testConvertETCBCGToInternal(self):
+        refs = [Ref(ReferenceFormID.ETCBCG,
+                    'Luke', sc=3, sv=4),
+                Ref(ReferenceFormID.ETCBCG,
+                    'Mark', 'Mark', 1, sv=12, ev=15)]
+        c_refs = convert_refs(refs, ReferenceFormID.BIBLEUTILS)
+        self.assertEqual(c_refs[0].versification, ReferenceFormID.BIBLEUTILS,
+                         f'Incorrect reference form {c_refs[0].versification}')
+        self.assertEqual(c_refs[0].st_book, BookID._LUKE,
+                         f'Conversion returned wrong name {c_refs[0].st_book}')
+        self.assertEqual(c_refs[0].st_ch, 3,
+                         f'Conversion returned wrong ch {c_refs[0].st_ch}')
+        self.assertEqual(c_refs[0].st_vs, 4,
+                         f'Conversion returned wrong vs {c_refs[0].st_vs}')
+        self.assertEqual(c_refs[1].versification, ReferenceFormID.BIBLEUTILS,
+                         f'Incorrect reference form {c_refs[1].versification}')
+        self.assertEqual(c_refs[1].st_book, BookID._MARK,
+                         f'Conversion returned wrong name {c_refs[1].st_book}')
+        self.assertEqual(c_refs[1].st_ch, 1,
+                         f'Conversion returned wrong ch {c_refs[1].st_ch}')
+        self.assertEqual(c_refs[1].st_vs, 12,
+                         f'Conversion returned wrong vs {c_refs[1].st_vs}')
+        self.assertEqual(c_refs[1].end_vs, 15,
+                         f'Conversion returned wrong vs {c_refs[1].end_vs}')
+
+    def testExpandVerse(self):
+        refs = [Ref(ReferenceFormID.ETCBCH,
+                    'Deuteronomium', sc=3, sv=4, ev=6)]
+        e_refs = expand_refs(refs)
+        self.assertEqual(len(e_refs), 3, 'incorrect number of expanded refs')
+        self.assertEqual(e_refs[0].st_book, 'Deuteronomium', 'st_book is not Deuteronomium')
+        self.assertIsNone(e_refs[0].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[0].st_ch, 3, 'wrong chapter')
+        self.assertIsNone(e_refs[0].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[0].st_vs, 4, 'wrong verse')
+        self.assertIsNone(e_refs[0].end_vs, 'end_vs is not None')
+
+        self.assertEqual(e_refs[1].st_book, 'Deuteronomium', 'st_book is not Deuteronomium')
+        self.assertIsNone(e_refs[1].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[1].st_ch, 3, 'wrong chapter')
+        self.assertIsNone(e_refs[1].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[1].st_vs, 5, 'wrong verse')
+        self.assertIsNone(e_refs[1].end_vs, 'end_vs is not None')
+        
+        self.assertEqual(e_refs[2].st_book, 'Deuteronomium', 'st_book is not Deuteronomium')
+        self.assertIsNone(e_refs[2].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[2].st_ch, 3, 'wrong chapter')
+        self.assertIsNone(e_refs[2].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[2].st_vs, 6, 'wrong verse')
+        self.assertIsNone(e_refs[2].end_vs, 'end_vs is not None')
+
+    def testExpandList(self):
+        refs = [Ref(ReferenceFormID.ETCBCH,
+                    'Deuteronomium', sc=3, sv=4, ev=6),
+                Ref(ReferenceFormID.ETCBCH,
+                    'Exodus', sc=6, sv=1, ev=7)]
+        e_refs = expand_refs(refs)
+        self.assertEqual(len(e_refs), 10, 'incorrect number of expanded refs')
+        self.assertEqual(e_refs[0].st_book, 'Deuteronomium', 'st_book is not Deuteronomium')
+        self.assertIsNone(e_refs[0].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[0].st_ch, 3, 'wrong chapter')
+        self.assertIsNone(e_refs[0].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[0].st_vs, 4, 'wrong verse')
+        self.assertIsNone(e_refs[0].end_vs, 'end_vs is not None')
+
+        self.assertEqual(e_refs[1].st_book, 'Deuteronomium', 'st_book is not Deuteronomium')
+        self.assertIsNone(e_refs[1].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[1].st_ch, 3, 'wrong chapter')
+        self.assertIsNone(e_refs[1].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[1].st_vs, 5, 'wrong verse')
+        self.assertIsNone(e_refs[1].end_vs, 'end_vs is not None')
+        
+        self.assertEqual(e_refs[2].st_book, 'Deuteronomium', 'st_book is not Deuteronomium')
+        self.assertIsNone(e_refs[2].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[2].st_ch, 3, 'wrong chapter')
+        self.assertIsNone(e_refs[2].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[2].st_vs, 6, 'wrong verse')
+        self.assertIsNone(e_refs[2].end_vs, 'end_vs is not None')
+    
+        self.assertEqual(e_refs[3].st_book, 'Exodus', 'st_book is not Exodus')
+        self.assertIsNone(e_refs[3].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[3].st_ch, 6, 'wrong chapter')
+        self.assertIsNone(e_refs[3].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[3].st_vs, 1, 'wrong verse')
+        self.assertIsNone(e_refs[3].end_vs, 'end_vs is not None')
+    
+        self.assertEqual(e_refs[4].st_book, 'Exodus', 'st_book is not Exodus')
+        self.assertIsNone(e_refs[4].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[4].st_ch, 6, 'wrong chapter')
+        self.assertIsNone(e_refs[4].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[4].st_vs, 2, 'wrong verse')
+        self.assertIsNone(e_refs[4].end_vs, 'end_vs is not None')
+    
+        self.assertEqual(e_refs[9].st_book, 'Exodus', 'st_book is not Exodus')
+        self.assertIsNone(e_refs[9].end_book, 'end_book is not None')
+        self.assertEqual(e_refs[9].st_ch, 6, 'wrong chapter')
+        self.assertIsNone(e_refs[9].end_ch, 'end_ch is not None')
+        self.assertEqual(e_refs[9].st_vs, 7, 'wrong verse')
+        self.assertIsNone(e_refs[9].end_vs, 'end_vs is not None')
+    
+    def testExpandChapter(self):
+        with self.assertRaises(Exception) as expected_ex:
+            refs = [Ref(ReferenceFormID.ETCBCH,
+                        'Deuteronomium', sc=3, ec=4, sv=4, ev=6)]
+            expand_refs(refs)
+
+        ex = expected_ex.exception
+        self.assertEqual(str(ex),
+                         'chapter range expansion not yet implemented')        
+    
+    def testExpandEndBook(self):
+        with self.assertRaises(Exception) as expected_ex:
+            refs = [Ref(ReferenceFormID.ETCBCH,
+                        'Deuteronomium', 'Exodus', sc=3, sv=4)]
+            expand_refs(refs)
+            
+        ex = expected_ex.exception
+        self.assertEqual(str(ex),
+                         'book range expansion not yet implemented')        
+             
+    def testRefBadCh(self):
+        with self.assertRaises(Exception) as expected_ex:
+            Ref(ReferenceFormID.ETCBCH,
+                'Deuteronomium', 'Exodus', sc=3, ec=2)
+            
+        ex = expected_ex.exception
+        self.assertEqual(str(ex),
+                         'ending vs 2 is before the starting vs 3')        
+
+    def testRefBadVs(self):
+        with self.assertRaises(Exception) as expected_ex:
+            Ref(ReferenceFormID.ETCBCH,
+                'Deuteronomium', 'Exodus', sv=3, ev=2)
+            
+        ex = expected_ex.exception
+        self.assertEqual(str(ex),
+                         'ending vs 2 is before the starting vs 3')        
         
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
