@@ -33,7 +33,29 @@ Created on Jan 21, 2017
 from inspect import currentframe
 import re
 from collections import namedtuple
-from test import test_userdict
+
+class VersificationException(Exception):
+    '''A VersificationException is a simple class containing an error message,
+    indicating a fault, a reason indicating why it occurred and an action, which
+    may be taken to resolve issue.
+    '''
+    def __init__(self, message, reason, action):
+        self._message = message
+        self._reason = reason
+        self._action = action
+    
+    @property
+    def message(self):
+        return self._message
+    
+    @property
+    def reason(self):
+        return self._reason
+    
+    @property
+    def action(self):
+        return self._action
+        
 
 class Identifier(object):
     '''An Identifier is a set of unique name to value mappings which are
@@ -51,8 +73,10 @@ class Identifier(object):
         self._map = dict()
         for (k, v) in m.items():
             if v in self._map.values():
-                raise Exception(
-                    'duplicate value in supplied map at key {:s}'.format(k))
+                raise VersificationException(
+                    'duplicate value in supplied map at key {:s}'.format(k),
+                    'the value supplied is already in use by another Identifier key',
+                    'choose a different value for this Identifier')
             self._map[k] = v
             
     def __iter__(self):
@@ -551,9 +575,12 @@ class Versification(object):
         for (k, v) in self._bk_mapping.items():
             self._reverse_mapping[v] = k 
         if len(self._bk_mapping) != len(self._reverse_mapping):
-            raise Exception(f'Duplicate values detected '
-                             'forward map size={len(self._bk_mapping)}'
-                             'reverse map size={len(self._reverse_mapping)}')
+            raise VersificationException(f'duplicate values detected '
+                                          'forward map size={len(self._bk_mapping)}'
+                                          'reverse map size={len(self._reverse_mapping)}',
+                                         'a duplicate value was found in this Versification',
+                                         'locate the duplicate and assign a unique value'
+                                         )
             
     def vid(self):
         '''Get the versification system ID
@@ -698,9 +725,13 @@ class Ref():
     def __init__(self, v, sb=None, eb=None, sc=None, ec=None, sv=None,
                  ev=None, ssv=None, esv=None):
         if sc is not None and ec is not None and ec < sc:
-            raise Exception(f'ending vs {ec} is before the starting vs {sc}')
+            raise VersificationException(f'ending chapter {ec} is before the starting chapter {sc}',
+                                         'chapter number must be in increasing order'
+                                         'reorder chapter numbers to be in numerical order')
         if sv is not None and ev is not None and ev < sv:
-            raise Exception(f'ending vs {ev} is before the starting vs {sv}')
+            raise VersificationException(f'ending verse {ev} is before the starting verse {sv}',
+                                         'verse number must be in increasing order',
+                                         'reorder verse numbers to be in numerical order')
         
         self._versification = v
         self._st_book = sb
@@ -809,7 +840,10 @@ def parse_refs(refs, form):
         if state.current == P_BOOK:
             m = re_book.match(refs, pos)
             if not m:
-                raise Exception(f'Parsing failed at pos {pos} in {refs}') 
+                raise VersificationException(
+                    f'invalid book name at pos {pos} in {refs}',
+                    'book name is invalid',
+                    'correct the book name and resubmit') 
             pos += len(m.group(1))
             if t_st_bk is None:
                 t_st_bk = m.group(1)
@@ -819,7 +853,10 @@ def parse_refs(refs, form):
         elif state.current == P_CH:
             m = re_ch.match(refs, pos)
             if not m:
-                raise Exception(f'Parsing failed at pos {pos} in {refs}')            
+                raise VersificationException(
+                    f'invalid chapter at pos {pos} in {refs}',
+                    'chapter reference is invalid',
+                    'correct the chapter and resubmit')            
             pos += len(m.group(1))
             if t_st_ch is None:
                 t_st_ch = int(m.group(1))
@@ -829,7 +866,10 @@ def parse_refs(refs, form):
         elif state.current == P_VS:
             m = re_vs.match(refs, pos)
             if not m:
-                raise Exception(f'Parsing failed at pos {pos} in {refs}')            
+                raise VersificationException(
+                    f'invalid verse reference at pos {pos} in {refs}',
+                    'verse reference is invalid',
+                    'correct the verse and resubmit')            
             pos += len(m.group(1))
             if t_st_vs is None:
                 t_st_vs = int(m.group(1))
@@ -843,7 +883,10 @@ def parse_refs(refs, form):
         elif state.current == P_DELIM:
             m = re_delim.match(refs, pos)
             if not m:
-                raise Exception(f'Parsing failed at pos {pos} in {refs}') 
+                raise VersificationException(
+                    f'invalid reference delimiter at pos {pos} in {refs}',
+                    'reference delimiter is invalid',
+                    'correct delimiter (one of ,:- or <space>) and resubmit') 
             pos += len(m.group(1))
             d = m.group(1)
             if ',' in d:
@@ -874,30 +917,48 @@ def parse_refs(refs, form):
                 if state.previous == P_CH:
                     state = update_state(state, P_VS)
                 else:
-                    raise Exception(f'invalid chapter to verse transition at {pos} in {refs}')
+                    raise VersificationException(
+                        f'invalid chapter to verse transition at {pos} in {refs}'
+                        'expected to find verse but did not',
+                        'examine and correct the reference and resubmit')
             elif '-' in d:
                 # We are looking for another of whatever the current
                 # state.current is looking for.
                 if state.previous == P_BOOK:
                     if t_end_bk is not None:
-                        raise Exception(f'invalid "-" delimiter at {pos} in {refs}')
+                        raise VersificationException(
+                            f'invalid "-" delimiter at {pos} in {refs}',
+                            'found unexpected book designation',
+                            'examine and correct the reference and resubmit')
                     state = update_state(state, P_BOOK)
                 elif state.previous == P_CH:
                     if t_end_ch is not None:
-                        raise Exception(f'invalid "-" delimiter at {pos} in {refs}')
+                        raise VersificationException(
+                            f'invalid "-" delimiter at {pos} in {refs}',
+                            'found unexpected chapter designation',
+                            'examine and correct the reference and resubmit')
                     state = update_state(state, P_CH)
                 elif state.previous == P_VS:
                     if t_end_vs is not None:
-                        raise Exception(f'invalid "-" delimiter at {pos} in {refs}')
+                        raise VersificationException(
+                            f'invalid "-" delimiter at {pos} in {refs}',
+                            'found unexpected verse designation',
+                            'examine and correct the reference and resubmit')
                     state = update_state(state, P_VS)
             elif d.isspace():
                 # Switch state depending upon the current state.
                 # book to chapter
                 state = update_state(state, P_CH)
             else:
-                raise Exception(f'invalid delimiter at {pos} in {refs}')
+                raise VersificationException(
+                    f'invalid delimiter at {pos} in {refs}',
+                    'found invalid delimiter',
+                    'correct delimiter (one of ,:- or <space>) and resubmit')
         else:
-            raise Exception(f'parsing failure at {pos} in {refs}')
+            raise VersificationException(
+                f'parsing failure at {pos} in {refs}',
+                'general parsing failure',
+                'examine and correct the reference and resubmit')
     
     rv.append(Ref(ReferenceFormID.BIBLEUTILS,
                   BookID.fromStr(t_st_bk), BookID.fromStr(t_end_bk),
@@ -923,7 +984,10 @@ def convert_refs(refs, form):
         # to be rethought. FIXME for now this hack will do.
         to_internal = True
     else:
-        raise Exception('Unsupported conversion form {form}')
+        raise VersificationException(
+            'unsupported conversion form {form}',
+            'the specified versification system is unknown',
+            'specify a support versification system designation')
     rv = []
     for r in refs:
         if r.versification == ReferenceFormID.BIBLEUTILS:
@@ -966,9 +1030,15 @@ def expand_refs(refs):
     rv = []
     for r in refs:
         if r.end_book != None:
-            raise Exception('book range expansion not yet implemented')
+            raise VersificationException(
+                'reference extends over more than one book',
+                'book range expansion not yet implemented',
+                'correct reference to be constrained to a single book')
         if r.end_ch != None:
-            raise Exception('chapter range expansion not yet implemented')
+            raise VersificationException(
+                'reference extends over more than one chapter',
+                'chapter range expansion not yet implemented',
+                'correct reference to be constrained to a single chapter')
         #end_ch = r.end_ch if r.end_ch is not None else r.st_ch
         #for ch in range(r.st_ch, end_ch + 1):
         end_vs = r.end_vs if r.end_vs is not None else r.st_vs
