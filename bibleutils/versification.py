@@ -726,7 +726,7 @@ class Ref():
                  ev=None, ssv=None, esv=None):
         if sc is not None and ec is not None and ec < sc:
             raise VersificationException(f'ending chapter {ec} is before the starting chapter {sc}',
-                                         'chapter number must be in increasing order'
+                                         'chapter number must be in increasing order',
                                          'reorder chapter numbers to be in numerical order')
         if sv is not None and ev is not None and ev < sv:
             raise VersificationException(f'ending verse {ev} is before the starting verse {sv}',
@@ -812,7 +812,7 @@ def parse_refs(refs, form):
     #   :       chapter to verse transition
     #   -       book to book, chapter to chapter, verse to verse transitions
     #   ,       end of current reference, transition unclear until next read
-    re_book = re.compile('([0-9]{0,1}[a-zA-Z]+)')
+    re_book = re.compile('([0-9]{0,1}[a-zA-Z]+\.{0,1})')
     re_delim = re.compile('( *[ +:,-] *)')
     re_ch = re.compile('([0-9]+)')
     re_vs = re.compile('([0-9]+)')
@@ -845,10 +845,13 @@ def parse_refs(refs, form):
                     'book name is invalid',
                     'correct the book name and resubmit') 
             pos += len(m.group(1))
+            bk = m.group(1)
+            if bk.endswith('.'):
+                bk = bk[:-1]
             if t_st_bk is None:
-                t_st_bk = m.group(1)
+                t_st_bk = bk
             else:
-                t_end_bk = m.group(1)
+                t_end_bk = bk
             state = update_state(state, P_DELIM)
         elif state.current == P_CH:
             m = re_ch.match(refs, pos)
@@ -866,16 +869,24 @@ def parse_refs(refs, form):
         elif state.current == P_VS:
             m = re_vs.match(refs, pos)
             if not m:
-                raise VersificationException(
-                    f'invalid verse reference at pos {pos} in {refs}',
-                    'verse reference is invalid',
-                    'correct the verse and resubmit')            
-            pos += len(m.group(1))
-            if t_st_vs is None:
-                t_st_vs = int(m.group(1))
-            else:
-                t_end_vs = int(m.group(1))            
-            state = update_state(state, P_DELIM)
+                if refs[pos].isalpha():
+                    if state.current == P_VS:
+                        # switch to book state and retry
+                        t_st_bk, t_end_bk, t_st_ch, t_end_ch, t_st_vs, t_end_vs, \
+                            t_st_subvs, t_end_subvs = (None,)*8  
+                        state = update_state(state, P_BOOK)
+                else:
+                    raise VersificationException(
+                        f'invalid verse reference at pos {pos} in {refs}',
+                        'verse reference is invalid',
+                        'correct the verse and resubmit')
+            else:       
+                pos += len(m.group(1))
+                if t_st_vs is None:
+                    t_st_vs = int(m.group(1))
+                else:
+                    t_end_vs = int(m.group(1))            
+                state = update_state(state, P_DELIM)
         elif state.current == P_SUBVS:
             state = update_state(state, P_DELIM)
         elif state.current == P_NEXT:
@@ -915,6 +926,11 @@ def parse_refs(refs, form):
                     state = update_state(state, P_VS)
             elif ':' in d:
                 if state.previous == P_CH:
+                    state = update_state(state, P_VS)
+                elif state.previous == P_VS:
+                    t_st_ch = t_st_vs
+                    t_end_ch = t_st_vs
+                    t_st_vs, t_end_vs = (None,)*2
                     state = update_state(state, P_VS)
                 else:
                     raise VersificationException(

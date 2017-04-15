@@ -6,7 +6,7 @@ Created on Jan 22, 2017
 import unittest
 from bibleutils.versification import VersificationID, BookID, Identifier, \
      ReferenceFormID, parse_refs, ETCBCHVersification, Ref, convert_refs, \
-     expand_refs
+     expand_refs, VersificationException
 
 class Test(unittest.TestCase):
 
@@ -51,11 +51,11 @@ class Test(unittest.TestCase):
         ''' 
         chk = {'_GENESIS':1, '_EXODUS':2, '_LEVITICUS':3,
                '_NUMBERS':4, '_DEUTERONOMY':5, '_DEUTERONOMYA':5}
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             Identifier(chk)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex)[:51],
+        self.assertEqual(ex.message[:51],
                          'duplicate value in supplied map at key _DEUTERONOMY',
                          'Unexpected mesg in exception : {:s}'.format(str(ex)))
 
@@ -93,47 +93,47 @@ class Test(unittest.TestCase):
                          'wrong book id {}'.format(r[0].end_book))
         
     def testParseBookRangeTwoDelims(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             parse_refs("Exodus--Numbers", ReferenceFormID.BIBLEUTILS)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'Parsing failed at pos 7 in Exodus--Numbers',
+        self.assertEqual(ex.message,
+                         'invalid book name at pos 7 in Exodus--Numbers',
                          'Unexpected mesg in exception : {:s}'.format(str(ex)))        
  
     def testParseChVsRangeTwoDelims(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             parse_refs("Exodus 12::13", ReferenceFormID.BIBLEUTILS)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'Parsing failed at pos 10 in Exodus 12::13',
+        self.assertEqual(ex.message,
+                         'invalid verse reference at pos 10 in Exodus 12::13',
                          'Unexpected mesg in exception : {:s}'.format(str(ex)))        
  
     def testParseTwoCommas(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             parse_refs("Exodus 12-13,,15", ReferenceFormID.BIBLEUTILS)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'Parsing failed at pos 13 in Exodus 12-13,,15',
+        self.assertEqual(ex.message,
+                         'invalid chapter at pos 13 in Exodus 12-13,,15',
                          'Unexpected mesg in exception : {:s}'.format(str(ex)))        
  
     def testParseMixedDelims(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             parse_refs("Exodus 12-13,:-15", ReferenceFormID.BIBLEUTILS)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'Parsing failed at pos 13 in Exodus 12-13,:-15',
+        self.assertEqual(ex.message,
+                         'invalid chapter at pos 13 in Exodus 12-13,:-15',
                          'Unexpected mesg in exception : {:s}'.format(str(ex)))        
 
     def testParseBookRangeTooManyBooks(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             parse_refs("Exodus-Numbers-Deuteronomy", ReferenceFormID.BIBLEUTILS)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
+        self.assertEqual(ex.message,
                          'invalid "-" delimiter at 15 in Exodus-Numbers-Deuteronomy')
                          
     def testParseMultiBookRangeOnly(self):
@@ -490,42 +490,43 @@ class Test(unittest.TestCase):
         self.assertIsNone(e_refs[9].end_vs, 'end_vs is not None')
     
     def testExpandChapter(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             refs = [Ref(ReferenceFormID.ETCBCH,
                         'Deuteronomium', sc=3, ec=4, sv=4, ev=6)]
             expand_refs(refs)
 
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'chapter range expansion not yet implemented')        
+        print(f'ex is {ex}')
+        self.assertEqual(ex.message,
+                         'reference extends over more than one chapter')        
     
     def testExpandEndBook(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             refs = [Ref(ReferenceFormID.ETCBCH,
                         'Deuteronomium', 'Exodus', sc=3, sv=4)]
             expand_refs(refs)
             
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'book range expansion not yet implemented')        
+        self.assertEqual(ex.message,
+                         'reference extends over more than one book')        
              
     def testRefBadCh(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             Ref(ReferenceFormID.ETCBCH,
                 'Deuteronomium', 'Exodus', sc=3, ec=2)
             
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'ending vs 2 is before the starting vs 3')        
+        self.assertEqual(ex.message,
+                         'ending chapter 2 is before the starting chapter 3')        
 
     def testRefBadVs(self):
-        with self.assertRaises(Exception) as expected_ex:
+        with self.assertRaises(VersificationException) as expected_ex:
             Ref(ReferenceFormID.ETCBCH,
                 'Deuteronomium', 'Exodus', sv=3, ev=2)
             
         ex = expected_ex.exception
-        self.assertEqual(str(ex),
-                         'ending vs 2 is before the starting vs 3')        
+        self.assertEqual(ex.message,
+                         'ending verse 2 is before the starting verse 3')        
         
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
