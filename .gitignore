@@ -1,0 +1,6 @@
+.project
+.pydevproject
+.settings/**
+bibleutils.egg-info/**
+build/**
+dist/**
